@@ -16,7 +16,8 @@ import {
   MessageSquare,
   X,
   ShieldAlert,
-  User 
+  User,
+  Users // Imported Users icon for the applicant count
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -34,9 +35,25 @@ export default function Dashboard() {
   useEffect(() => {
     const loadData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-
+      
       if (user) {
+        // Fetch live data from DB to ensure kyc_verified and rating are current
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        // Merge: Database data overwrites user_metadata to ensure live values
+        const mergedUser = {
+          ...user,
+          user_metadata: {
+            ...user.user_metadata,
+            ...dbUser,
+          }
+        };
+        
+        setUser(mergedUser);
         // 1. Fetch Wallet
         let { data: walletData } = await supabase
           .from("wallets")
@@ -54,10 +71,11 @@ export default function Dashboard() {
         }
         setWallet(walletData || { balance: 0 });
 
-        // 2. Fetch Marketplace Gigs
+        // 2. Fetch Marketplace Gigs + Applicant Count
+        // Added ", applications(count)" to fetch the number of applicants
         const { data: gigsData } = await supabase
           .from("gigs")
-          .select("*")
+          .select("*, applications(count)") 
           .neq("poster_id", user.id)
           .eq("status", "open")
           .order("created_at", { ascending: false })
@@ -114,7 +132,7 @@ export default function Dashboard() {
         {/* --- PROFILE BUTTON AREA --- */}
         <div className="relative">
             
-            {/* NEW: Small Yellow Floating Icon with Tooltip */}
+            {/* Small Yellow Floating Icon with Tooltip */}
             <Link 
               href="/profile"
               className="group absolute bottom-full mb-3 right-6 z-20 p-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.3)] animate-bounce hover:bg-yellow-500/20 transition-all hover:scale-110 flex items-center justify-center"
@@ -124,7 +142,6 @@ export default function Dashboard() {
               {/* TOOLTIP: Appears on Hover */}
               <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 w-max px-3 py-1.5 bg-[#1A1A24] border border-yellow-500/20 text-yellow-500 text-[10px] font-bold uppercase tracking-wider rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none shadow-xl">
                 Verify KYC Now
-                {/* Tiny arrow pointing to the button */}
                 <span className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-2 bg-[#1A1A24] border-t border-r border-yellow-500/20 rotate-45"></span>
               </span>
             </Link>
@@ -263,10 +280,20 @@ export default function Dashboard() {
                   {gig.description}
                 </p>
                 <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                  <div className="flex items-center gap-2 text-xs text-white/40 font-medium bg-white/5 px-2 py-1 rounded">
-                    <MapPin className="w-3 h-3" />
-                    <span>{gig.is_physical ? "On-Campus" : "Remote"}</span>
+                  
+                  {/* METADATA GROUP */}
+                  <div className="flex gap-2">
+                    <div className="flex items-center gap-2 text-xs text-white/40 font-medium bg-white/5 px-2 py-1 rounded">
+                        <MapPin className="w-3 h-3" />
+                        <span>{gig.is_physical ? "On-Campus" : "Remote"}</span>
+                    </div>
+                    {/* APPLICANT COUNT BADGE */}
+                    <div className="flex items-center gap-2 text-xs text-white/40 font-medium bg-white/5 px-2 py-1 rounded" title="Applicant slots">
+                        <Users className="w-3 h-3" />
+                        <span>{gig.applications?.[0]?.count || 0}/10</span>
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-1 text-xs font-bold text-brand-blue uppercase tracking-wide">
                     Apply Now <ArrowUpRight className="w-3 h-3" />
                   </div>
@@ -294,7 +321,6 @@ export default function Dashboard() {
       </section>
 
       
-
       {/* --- 💬 FLOATING CHAT WIDGET (Bottom Right) --- */}
       {activeChats.length > 0 && (
         <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-4">

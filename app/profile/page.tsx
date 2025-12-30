@@ -45,7 +45,7 @@ export default function ProfilePage() {
           return;
         }
 
-        // 2. Fetch Public Profile
+        // 2. Fetch Public Profile (Live data from DB)
         let { data: userData, error: userError } = await supabase
           .from("users")
           .select("*")
