@@ -47,7 +47,7 @@ export default function HomePage() {
       prevMouseX.current = e.clientX;
 
       // Add "impulse" to swing velocity based on movement.
-      const impulse = dx * 0.1; // Reduced sensitivity for smoother swing
+      const impulse = dx * 0.08; // Reduced sensitivity for smoother swing
       velocity.current += impulse;
     };
 
